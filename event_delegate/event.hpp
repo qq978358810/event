@@ -120,16 +120,6 @@
 #    endif
 #endif
 
-#ifndef API
-#    if defined API_EXPORT
-#        define API EXPORT
-#    elif defined API_IMPORT
-#        define API IMPORT
-#    else /* No API */
-#        define API
-#    endif
-#endif
-
 
 
 namespace event {
@@ -751,7 +741,7 @@ inline namespace literals {
 /*! @cond TURN_OFF_DOXYGEN */
 namespace internal {
 
-struct API type_index final {
+struct  type_index final {
     [[nodiscard]] static id_type next() noexcept {
         static MAYBE_ATOMIC(id_type) value{};
         return value++;
@@ -814,7 +804,7 @@ template<typename Type>
  * @tparam Type Type for which to generate a sequential identifier.
  */
 template<typename Type, typename = void>
-struct API type_index final {
+struct  type_index final {
     /**
      * @brief Returns the sequential identifier of a given type.
      * @return The sequential identifier of a given type.
@@ -1319,17 +1309,17 @@ struct dense_map_node final {
     template<typename Allocator, typename... Args>
     dense_map_node(std::allocator_arg_t, const Allocator &allocator, const std::size_t pos, Args &&...args)
         : next{pos},
-        element{event::make_obj_using_allocator<value_type>(allocator, std::forward<Args>(args)...)} {}
+        element{make_obj_using_allocator<value_type>(allocator, std::forward<Args>(args)...)} {}
 
     template<typename Allocator>
     dense_map_node(std::allocator_arg_t, const Allocator &allocator, const dense_map_node &other)
         : next{other.next},
-        element{event::make_obj_using_allocator<value_type>(allocator, other.element)} {}
+        element{make_obj_using_allocator<value_type>(allocator, other.element)} {}
 
     template<typename Allocator>
     dense_map_node(std::allocator_arg_t, const Allocator &allocator, dense_map_node &&other)
         : next{other.next},
-        element{event::make_obj_using_allocator<value_type>(allocator, std::move(other.element))} {}
+        element{make_obj_using_allocator<value_type>(allocator, std::move(other.element))} {}
 
     std::size_t next;
     value_type element;
@@ -3631,6 +3621,7 @@ public:
      * @param args Arguments to use to construct the event.
      */
     template<typename Type, typename... Args>
+        requires requires { Type{std::declval<Args>()...}; }
     void enqueue(Args &&...args) {
         enqueue_hint<Type>(type_hash<Type>::value(), std::forward<Args>(args)...);
     }
@@ -3731,39 +3722,3 @@ private:
 };
 
 } // namespace event
-
-
-namespace std {
-
-/**
- * @brief `std::tuple_size` specialization for `compressed_pair`s.
- * @tparam First The type of the first element that the pair stores.
- * @tparam Second The type of the second element that the pair stores.
- */
-template<typename First, typename Second>
-struct tuple_size<event::compressed_pair<First, Second>>: integral_constant<size_t, 2u> {};
-
-/**
- * @brief `std::tuple_element` specialization for `compressed_pair`s.
- * @tparam Index The index of the type to return.
- * @tparam First The type of the first element that the pair stores.
- * @tparam Second The type of the second element that the pair stores.
- */
-template<size_t Index, typename First, typename Second>
-struct tuple_element<Index, event::compressed_pair<First, Second>>: conditional<Index == 0u, First, Second> {
-    static_assert(Index < 2u, "Index out of bounds");
-};
-
-} // namespace std
-
-
-/*! @cond TURN_OFF_DOXYGEN */
-namespace std {
-
-template<typename Key, typename Value, typename Allocator>
-struct uses_allocator<event::internal::dense_map_node<Key, Value>, Allocator>
-    : std::true_type {};
-
-} // namespace std
-/*! @endcond */
-
